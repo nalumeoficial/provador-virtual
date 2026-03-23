@@ -6,7 +6,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Configuração
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyDeIt5-JcazAHv-9evAbRUCnO7_u2eV_GQ';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyB21kuXQqt0bZHP5iwePqriDj-TxLQMX-w';
 const GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -26,47 +26,60 @@ app.get('/health', (req, res) => {
 // Virtual Try-On endpoint
 app.post('/api/virtual-tryon', async (req, res) => {
   try {
-    const { userImage, productImage, productName } = req.body;
+    const { userImage, productImages, productImage, productName } = req.body;
 
-    if (!userImage || !productImage) {
+    // Aceitar array de imagens ou imagem única (compatibilidade)
+    const allProductImages = productImages && productImages.length > 0 ? productImages : (productImage ? [productImage] : []);
+
+    if (!userImage || allProductImages.length === 0) {
       return res.status(400).json({ error: 'Imagens são obrigatórias' });
     }
 
-    console.log('[Try-On] Processando...');
+    console.log(`[Try-On] Processando com ${allProductImages.length} foto(s) do produto...`);
 
-    // Preparar imagens
+    // Preparar imagem da cliente
     const userBase64 = userImage.replace(/^data:image\/\w+;base64,/, '');
-    
-    let productBase64;
-    if (productImage.startsWith('data:')) {
-      productBase64 = productImage.replace(/^data:image\/\w+;base64,/, '');
-    } else {
-      const imgResponse = await axios.get(productImage, { responseType: 'arraybuffer', timeout: 30000 });
-      productBase64 = Buffer.from(imgResponse.data).toString('base64');
+
+    // Preparar todas as imagens do produto
+    const productBase64List = [];
+    for (const img of allProductImages) {
+      let base64;
+      if (img.startsWith('data:')) {
+        base64 = img.replace(/^data:image\/\w+;base64,/, '');
+      } else {
+        const imgResponse = await axios.get(img, { responseType: 'arraybuffer', timeout: 30000 });
+        base64 = Buffer.from(imgResponse.data).toString('base64');
+      }
+      productBase64List.push(base64);
     }
 
     // Prompt para o Gemini
-    const prompt = `You are a fashion virtual try-on system. Create a photorealistic image showing the person from the FIRST image wearing the clothing from the SECOND image.
+    const imageCount = productBase64List.length;
+    const prompt = `You are a fashion virtual try-on system. Create a photorealistic image showing the person from the FIRST image wearing the clothing shown in the NEXT ${imageCount} image(s).
 
 CRITICAL RULES:
-- Keep the person's face, body, pose, and background EXACTLY the same
-- Only replace their clothing with the garment from the second image
+- The FIRST image is the customer's photo — keep their face, body, pose, and background EXACTLY the same
+- The NEXT ${imageCount} image(s) show the SAME clothing item "${productName || 'fitness wear'}" from different angles and details
+- Analyze ALL product images to understand the garment's complete design: front, back, details, texture, color, and pattern
+- Replace the customer's clothing with this garment, making sure the result reflects all details visible across the product photos
 - Make it look natural with proper lighting and fabric draping
-- The clothing item is: ${productName || 'fitness wear'}
 
 Generate ONE high-quality photorealistic result.`;
+
+    // Montar parts: prompt + foto da cliente + todas as fotos do produto
+    const parts = [
+      { text: prompt },
+      { inline_data: { mime_type: 'image/jpeg', data: userBase64 } }
+    ];
+    for (const pBase64 of productBase64List) {
+      parts.push({ inline_data: { mime_type: 'image/jpeg', data: pBase64 } });
+    }
 
     // Chamar Gemini API
     const response = await axios.post(
       `${GEMINI_URL}/${GEMINI_MODEL}:generateContent`,
       {
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: 'image/jpeg', data: userBase64 } },
-            { inline_data: { mime_type: 'image/jpeg', data: productBase64 } }
-          ]
-        }],
+        contents: [{ parts }],
         generationConfig: { responseModalities: ['IMAGE'] }
       },
       {
