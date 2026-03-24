@@ -91,15 +91,16 @@ Generate ONE high-quality photorealistic result.`;
       }
     );
 
-    // Extrair imagem da resposta
+    // Extrair imagem da resposta (suporta snake_case e camelCase)
     const parts = response.data.candidates?.[0]?.content?.parts || [];
     for (const part of parts) {
-      if (part.inline_data?.data) {
-        const mime = part.inline_data.mime_type || 'image/png';
+      const imgData = part.inline_data || part.inlineData;
+      if (imgData?.data) {
+        const mime = imgData.mime_type || imgData.mimeType || 'image/png';
         console.log('[Try-On] Sucesso!');
         return res.json({
           success: true,
-          resultImage: `data:${mime};base64,${part.inline_data.data}`
+          resultImage: `data:${mime};base64,${imgData.data}`
         });
       }
     }
