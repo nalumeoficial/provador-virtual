@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 
 // Configuração
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyB21kuXQqt0bZHP5iwePqriDj-TxLQMX-w';
-const GEMINI_MODEL = 'gemini-3-pro-image-preview';
+const GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // Middleware
