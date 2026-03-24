@@ -104,14 +104,22 @@ Generate ONE high-quality photorealistic result.`;
       }
     }
 
-    throw new Error('Nenhuma imagem gerada');
+    // Log completo da resposta para debug
+    console.error('[Try-On] Resposta sem imagem. Candidates:', JSON.stringify(response.data.candidates, null, 2));
+    console.error('[Try-On] promptFeedback:', JSON.stringify(response.data.promptFeedback, null, 2));
+    throw new Error('Nenhuma imagem gerada pelo modelo');
 
   } catch (error) {
-    console.error('[Try-On] Erro:', error.message);
+    const geminiError = error.response?.data?.error;
+    if (geminiError) {
+      console.error('[Try-On] Erro Gemini:', JSON.stringify(geminiError, null, 2));
+    } else {
+      console.error('[Try-On] Erro:', error.message);
+    }
     res.status(500).json({
       success: false,
       error: 'Erro ao processar imagem',
-      message: error.message
+      message: geminiError?.message || error.message
     });
   }
 });
