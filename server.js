@@ -67,19 +67,19 @@ CRITICAL RULES:
 Generate ONE high-quality photorealistic result.`;
 
     // Montar parts: prompt + foto da cliente + todas as fotos do produto
-    const parts = [
+    const requestParts = [
       { text: prompt },
       { inline_data: { mime_type: 'image/jpeg', data: userBase64 } }
     ];
     for (const pBase64 of productBase64List) {
-      parts.push({ inline_data: { mime_type: 'image/jpeg', data: pBase64 } });
+      requestParts.push({ inline_data: { mime_type: 'image/jpeg', data: pBase64 } });
     }
 
     // Chamar Gemini API
     const response = await axios.post(
       `${GEMINI_URL}/${GEMINI_MODEL}:generateContent`,
       {
-        contents: [{ parts }],
+        contents: [{ parts: requestParts }],
         generationConfig: { responseModalities: ['IMAGE'] }
       },
       {
